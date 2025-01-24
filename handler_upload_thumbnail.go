@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"mime"
 	"net/http"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
@@ -28,10 +28,58 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	const maxMemory = 10 << 20 // 10MB
+	err = r.ParseMultipartForm(maxMemory)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn't parse multipart form", err)
+		return
+	}
 
-	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
+	const thumbnailFileKey = "thumbnail"
+	file, header, err := r.FormFile(thumbnailFileKey)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Unable to parse form file", err)
+		return
+	}
+	defer file.Close()
 
-	// TODO: implement the upload here
+	mediaType := header.Header.Get("Content-Type")
+	if mediaType == "" {
+		respondWithError(w, http.StatusBadRequest, "Couldn't read Content-Type header", nil)
+		return
+	}
+	mediaType, _, err = mime.ParseMediaType(mediaType)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Content-Type header", err)
+		return
+	}
+	if !(mediaType == "image/jpeg" || mediaType == "image/png") {
+		respondWithError(w, http.StatusBadRequest, "Content must be jpeg or png image", nil)
+		return
+	}
 
-	respondWithJSON(w, http.StatusOK, struct{}{})
+	video, err := cfg.db.GetVideo(videoID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn't get video", err)
+		return
+	}
+	if video.UserID != userID {
+		respondWithError(w, http.StatusUnauthorized, "Video user ID and user ID do not match", nil)
+		return
+	}
+
+	tnURL, err := cfg.saveAsset(video.ID.String(), mediaType, file)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn't save thumbnail", err)
+		return
+	}
+
+	video.ThumbnailURL = &tnURL
+	err = cfg.db.UpdateVideo(video)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't save changes to video", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, video)
 }
