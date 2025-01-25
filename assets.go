@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"io"
 	"os"
@@ -17,6 +19,16 @@ func (cfg apiConfig) ensureAssetsDir() error {
 		return os.Mkdir(cfg.assetsRoot, 0755)
 	}
 	return nil
+}
+
+func (cfg apiConfig) uniqueSaveAsset(mimeType string, src io.Reader) (url string, err error) {
+	randSl := make([]byte, 32)
+	_, err = rand.Read(randSl)
+	if err != nil {
+		return "", err
+	}
+	name := base64.RawURLEncoding.EncodeToString(randSl)
+	return cfg.saveAsset(name, mimeType, src)
 }
 
 func (cfg apiConfig) saveAsset(name string, mimeType string, src io.Reader) (url string, err error) {

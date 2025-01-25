@@ -68,7 +68,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	tnURL, err := cfg.saveAsset(video.ID.String(), mediaType, file)
+	tnURL, err := cfg.uniqueSaveAsset(mediaType, file)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Couldn't save thumbnail", err)
 		return
