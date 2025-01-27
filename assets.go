@@ -1,17 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"errors"
 	"io"
 	"os"
 	"path"
-	"strings"
-)
-
-var (
-	errInvalidMimeType = errors.New("invalid mime type")
 )
 
 func (cfg apiConfig) ensureAssetsDir() error {
@@ -21,24 +13,14 @@ func (cfg apiConfig) ensureAssetsDir() error {
 	return nil
 }
 
-func (cfg apiConfig) uniqueSaveAsset(mimeType string, src io.Reader) (url string, err error) {
-	randSl := make([]byte, 32)
-	_, err = rand.Read(randSl)
+func (cfg apiConfig) saveInLocal(name string, mimeType string, src io.Reader) (url string, err error) {
+	ext, err := extractExtFromMime(mimeType)
 	if err != nil {
 		return "", err
 	}
-	name := base64.RawURLEncoding.EncodeToString(randSl)
-	return cfg.saveAsset(name, mimeType, src)
-}
+	fullName := name + "." + ext
 
-func (cfg apiConfig) saveAsset(name string, mimeType string, src io.Reader) (url string, err error) {
-	parts := strings.Split(mimeType, "/")
-	if len(parts) != 2 {
-		return "", errInvalidMimeType
-	}
-	assetName := name + "." + parts[1]
-
-	assetPath := path.Join(cfg.assetsRoot, assetName)
+	assetPath := path.Join(cfg.assetsRoot, fullName)
 	f, err := os.Create(assetPath)
 	if err != nil {
 		return "", err
@@ -48,5 +30,5 @@ func (cfg apiConfig) saveAsset(name string, mimeType string, src io.Reader) (url
 		return "", err
 	}
 
-	return "http://localhost:" + cfg.port + assetsPath + assetName, nil
+	return "http://localhost:" + cfg.port + assetsPath + fullName, nil
 }
