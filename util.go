@@ -1,14 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"os/exec"
 	"strings"
-)
-
-var (
-	errInvalidMimeType = errors.New("invalid mime type")
 )
 
 func randURLName() (string, error) {
@@ -21,10 +20,53 @@ func randURLName() (string, error) {
 	return name, nil
 }
 
+var (
+	errInvalidMimeType = errors.New("invalid mime type")
+)
+
 func extractExtFromMime(mimeType string) (string, error) {
 	parts := strings.Split(mimeType, "/")
 	if len(parts) != 2 {
 		return "", errInvalidMimeType
 	}
 	return parts[1], nil
+}
+
+type aspectRatio string
+
+var (
+	LANDSCAPE aspectRatio = "16:9"
+	PORTRAIT  aspectRatio = "9:16"
+)
+
+type ffprobeData struct {
+	Streams []struct {
+		AspectRatio aspectRatio `json:"display_aspect_ratio"`
+	} `json:"streams"`
+}
+
+var (
+	errEmptyStreamsSlice = errors.New("empty data streams slice")
+)
+
+func getVideoAspectRatio(filePath string) (aspectRatio, error) {
+	res := &bytes.Buffer{}
+
+	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filePath)
+	cmd.Stdout = res
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	data := ffprobeData{}
+	err = json.NewDecoder(res).Decode(&data)
+	if err != nil {
+		return "", err
+	}
+	if len(data.Streams) == 0 {
+		return "", errEmptyStreamsSlice
+	}
+
+	return data.Streams[0].AspectRatio, nil
 }
