@@ -16,10 +16,10 @@ func (cfg apiConfig) saveInBucket(ctx context.Context, name string, mimeType str
 	}
 
 	tempFile, err := os.CreateTemp("", "tubely-upload-*."+ext)
-	tempFilePath := tempFile.Name()
 	if err != nil {
 		return "", err
 	}
+	tempFilePath := tempFile.Name()
 	defer os.Remove(tempFilePath)
 	defer tempFile.Close()
 
@@ -31,6 +31,16 @@ func (cfg apiConfig) saveInBucket(ctx context.Context, name string, mimeType str
 	if err != nil {
 		return "", err
 	}
+
+	err = processVideoForFastStart(tempFilePath, tempFilePath)
+	if err != nil {
+		return "", err
+	}
+	tempFile, err = os.Open(tempFilePath)
+	if err != nil {
+		return "", err
+	}
+	defer tempFile.Close()
 
 	ratio, err := getVideoAspectRatio(tempFilePath)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -69,4 +70,26 @@ func getVideoAspectRatio(filePath string) (aspectRatio, error) {
 	}
 
 	return data.Streams[0].AspectRatio, nil
+}
+
+func processVideoForFastStart(srcPath, dstPath string) error {
+	if srcPath != dstPath {
+		return exec.Command("ffmpeg", "-i", srcPath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", dstPath).Run()
+	}
+
+	dstPath = srcPath + ".processing"
+
+	cmd := exec.Command("ffmpeg", "-i", srcPath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", dstPath)
+	err := cmd.Run()
+	if err != nil {
+		os.Remove(dstPath)
+		return err
+	}
+
+	err = os.Remove(srcPath)
+	if err != nil {
+		os.Remove(dstPath)
+		return err
+	}
+	return os.Rename(dstPath, srcPath)
 }
