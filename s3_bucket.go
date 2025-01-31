@@ -58,8 +58,7 @@ func (cfg apiConfig) saveInBucket(ctx context.Context, name string, mimeType str
 
 	fullName := name + "." + ext
 	path := prefix + fullName
-	url, err = cfg.s3PutObject(ctx, path, mimeType, tempFile)
-	return url, err
+	return cfg.s3PutObject(ctx, path, mimeType, tempFile)
 }
 
 func (cfg apiConfig) s3PutObject(ctx context.Context, path, mimeType string, data io.Reader) (url string, err error) {
@@ -76,5 +75,5 @@ func (cfg apiConfig) s3PutObject(ctx context.Context, path, mimeType string, dat
 		return "", err
 	}
 
-	return "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + path, nil
+	return cfg.s3CfDistribution + path, nil
 }
